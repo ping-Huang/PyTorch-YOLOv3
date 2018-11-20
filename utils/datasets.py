@@ -61,6 +61,7 @@ class ListDataset(Dataset):
         #---------
 
         img_path = self.img_files[index % len(self.img_files)].rstrip()
+        print(img_path)
         img = np.array(Image.open(img_path))
 
         # Handles images with less than three channels
@@ -92,7 +93,9 @@ class ListDataset(Dataset):
         label_path = self.label_files[index % len(self.img_files)].rstrip()
 
         labels = None
-        if os.path.exists(label_path):
+        if os.stat(label_path).st_size > 0:
+        #if os.path.exists(label_path):
+
             labels = np.loadtxt(label_path).reshape(-1, 5)
             # Extract coordinates for unpadded + unscaled image
             x1 = w * (labels[:, 1] - labels[:, 3]/2)

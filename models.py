@@ -66,7 +66,13 @@ def create_modules(module_defs):
 
         elif module_def["type"] == "route":
             layers = [int(x) for x in module_def["layers"].split(",")]
-            filters = sum([output_filters[layer_i] for layer_i in layers])
+            #filters = sum([output_filters[layer_i] for layer_i in layers])
+            # modify the tiny weights error
+            filters = 0
+            for layer_i in layers:
+                if layer_i > 0:
+                    layer_i += 1
+                filters += output_filters[layer_i]
             modules.add_module("route_%d" % i, EmptyLayer())
 
         elif module_def["type"] == "shortcut":
@@ -114,7 +120,6 @@ class YOLOLayer(nn.Module):
         self.mse_loss = nn.MSELoss(size_average=True)  # Coordinate loss
         self.bce_loss = nn.BCELoss(size_average=True)  # Confidence loss
         self.ce_loss = nn.CrossEntropyLoss()  # Class loss
-
     def forward(self, x, targets=None):
         nA = self.num_anchors
         nB = x.size(0)
@@ -173,7 +178,10 @@ class YOLOLayer(nn.Module):
 
             nProposals = int((pred_conf > 0.5).sum().item())
             recall = float(nCorrect / nGT) if nGT else 1
-            precision = float(nCorrect / nProposals)
+            if nProposals == 0:
+                precision = 0.0
+            else:
+                precision = float(nCorrect / nProposals)
 
             # Handle masks
             mask = Variable(mask.type(ByteTensor))
@@ -192,14 +200,24 @@ class YOLOLayer(nn.Module):
             conf_mask_false = conf_mask - mask
 
             # Mask outputs to ignore non-existing objects
-            loss_x = self.mse_loss(x[mask], tx[mask])
-            loss_y = self.mse_loss(y[mask], ty[mask])
-            loss_w = self.mse_loss(w[mask], tw[mask])
-            loss_h = self.mse_loss(h[mask], th[mask])
-            loss_conf = self.bce_loss(pred_conf[conf_mask_false], tconf[conf_mask_false]) + self.bce_loss(
-                pred_conf[conf_mask_true], tconf[conf_mask_true]
-            )
-            loss_cls = (1 / nB) * self.ce_loss(pred_cls[mask], torch.argmax(tcls[mask], 1))
+            if len(tcls[mask]) == 0:
+                loss_x = self.mse_loss(x[mask], x[mask])
+                loss_y = self.mse_loss(y[mask], y[mask])
+                loss_w = self.mse_loss(w[mask], w[mask])
+                loss_h = self.mse_loss(h[mask], h[mask])
+                loss_conf = self.bce_loss(pred_conf[conf_mask_false], tconf[conf_mask_false])
+                
+                loss_cls = self.mse_loss(x[mask], x[mask]) # assign 0
+            else:
+                loss_x = self.mse_loss(x[mask], tx[mask])
+                loss_y = self.mse_loss(y[mask], ty[mask])
+                loss_w = self.mse_loss(w[mask], tw[mask])
+                loss_h = self.mse_loss(h[mask], th[mask])
+                loss_conf = self.bce_loss(pred_conf[conf_mask_false], tconf[conf_mask_false]) + self.bce_loss(
+                    pred_conf[conf_mask_true], tconf[conf_mask_true]
+                )
+                
+                loss_cls = (1 / nB) * self.ce_loss(pred_cls[mask], torch.argmax(tcls[mask], 1))
             loss = loss_x + loss_y + loss_w + loss_h + loss_conf + loss_cls
 
             return (

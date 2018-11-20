@@ -109,7 +109,7 @@ for label in range(num_classes):
     scores = []
     num_annotations = 0
 
-    for i in tqdm.tqdm(range(len(all_annotations)), desc=f"Computing AP for class '{label}'"):
+    for i in tqdm.tqdm(range(len(all_annotations)), desc="Computing AP for class {label}".format(label = label)):
         detections = all_detections[i][label]
         annotations = all_annotations[i][label]
 
@@ -159,7 +159,7 @@ for label in range(num_classes):
 
 print("Average Precisions:")
 for c, ap in average_precisions.items():
-    print(f"+ Class '{c}' - AP: {ap}")
+    print("+ Class '{c}' - AP: {ap}".format(c=c, ap=ap))
 
 mAP = np.mean(list(average_precisions.values()))
-print(f"mAP: {mAP}")
+print("mAP: {mAP}".format(mAP=mAP))
