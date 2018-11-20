@@ -1,0 +1,5 @@
+classes= 8
+train=data/train_cloth.txt
+valid=data/test_cloth.txt
+names=data/cloth.names
+backup=backup/
